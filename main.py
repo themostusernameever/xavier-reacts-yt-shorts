@@ -4,6 +4,8 @@ import praw
 import random
 from urllib.request import urlretrieve
 import magic
+# don't forget to set it to pip install scikit-image !!!
+from skimage import filters
 if not os.path.isfile(os.getcwd()+"/ytredditconf.txt"):
     with open("ytredditconf.txt","w+") as f:
         print("Hello there! welcome to this.. thing i guess")
@@ -14,7 +16,13 @@ if not os.path.isfile(os.getcwd()+"/ytredditconf.txt"):
         f.write("\n"+input("your username? :"))
         f.write("\n"+input("and lastly, what sub reddits do you want to see? (separate them by a , ex. cursedimages,blursedimages) :"))
 
+
+print("now, make sure you have these 2 (or 3) files in your work folder.\n 1: input-video.mp4 (for the video on the footer)\n 2: input-audio.mp3 (for bg audio)")
+
+
 subr = []
+
+
 with open(os.getcwd()+"/ytredditconf.txt","r") as r:
     l = r.read().splitlines()
     reddit = praw.Reddit(
@@ -27,9 +35,9 @@ with open(os.getcwd()+"/ytredditconf.txt","r") as r:
     subr = l[4].split(",")
 print(reddit.user.me())
 mime = magic.Magic(mime=True)
-if input("^ is this you? (Y or n): ") == "n":
-    os.remove(os.getcwd()+"ytredditconf.txt")
-    exit()
+print("^ currently using this account.")
+
+
 def generatevid(num):
     def get_post():
         l = 0
@@ -43,7 +51,7 @@ def generatevid(num):
             sub = s.random()
             data = urlretrieve(sub.url,"out")
             tp = mime.from_file("out")
-            if tp in ["image/png", "image/jpeg", "video/mp4"]:
+            if tp in ["image/png", "image/jpeg"]:
                 return [data,tp]
         except AttributeError:
             for sub in s.random_rising():
@@ -56,20 +64,28 @@ def generatevid(num):
     clip2 = VideoFileClip(os.getcwd()+"/input-video.mp4")
     if sr[1] in ["image/png", "image/jpeg"]:
         clip1 = ImageClip(os.getcwd()+"/out",duration=clip2.duration)
-    else:
-        clip1 = VideoFileClip(os.getcwd()+"/out",duration=clip2.duration,width=1080)
-    clip1 = clip1.resize(width=1080)
+    clip1 = clip1.resize(width=980)
     x_off = 0
+    x1_off = 0
     if clip1.h >= 1280:
-        clip1 = clip1.resize(height=1280)
-        x_off = (1080-clip1.w)/2
-
+        clip1 = clip1.resize(height=1180)
+        x_off = (1080-clip1.w)/2-25
+    def blur(image): 
+        return filters.gaussian(image.astype(float), sigma=2)
 
     clip2 = clip2.resize(width=1080)
+    clip3 = clip2.resize(height=200).fl_image( blur )
+    clip3 = clip3.resize(height=1920)
+    if clip2.h >= 800:
+        clip2 = clip2.resize(height=800)
+        x1_off = (1080-clip2.w)/2
     audioclip = AudioFileClip(os.getcwd()+"/input-audio.mp3").set_duration(clip2.duration)
-    main_clip = CompositeVideoClip([clip1.set_position((x_off,0)),clip2.set_position((0,clip1.h))], size=(1080,1920))
+    main_clip = CompositeVideoClip([clip3,clip1.set_position((x_off+50,(1920-clip2.h-clip1.h)/2+50)),clip2.set_position((x1_off+0,1920-clip2.h))], size=(1080,1920))
     main_clip.audio =audioclip
     main_clip.write_videofile(os.getcwd()+f'/output/output-video{num}.mp4',fps=25,codec='libx264')
-os.mkdir(os.getcwd()+"/output")
+
+if not os.path.exists(os.getcwd()+"/output"):
+    os.mkdir(os.getcwd()+"/output")
+
 for i in range(0,int(input("how many videos should we generate?: "))):
     generatevid(i)
